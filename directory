@@ -1,6 +1,45 @@
-notion-instagram-grid/
-├── api/
-│   └── instagram.js
-├── vercel.json
-├── package.json
-└── .env
+// notion-fetch.js
+const { Client } = require('@notionhq/client');
+const fs = require('fs');
+
+const notion = new Client({ auth: process.env.NOTION_API_KEY });
+
+const databaseId = process.env.NOTION_DATABASE_ID;
+
+async function getPosts() {
+  const response = await notion.databases.query({
+    database_id: databaseId,
+    filter: {
+      property: 'Status',
+      select: {
+        equals: 'Posted',
+      },
+    },
+  });
+
+  const posts = response.results.map((page) => {
+    const url = page.properties['Image URL'].url || page.properties['Image URL'].rich_text?.[0]?.plain_text;
+    return url;
+  });
+
+  const html = `
+  <html>
+    <head>
+      <style>
+        body { font-family: sans-serif; margin: 20px; background: #fff; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .grid img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 6px; }
+      </style>
+    </head>
+    <body>
+      <h2>Instagram Preview</h2>
+      <div class="grid">
+        ${posts.map(url => `<img src="${url}" alt="IG Post">`).join('\n')}
+      </div>
+    </body>
+  </html>`;
+
+  fs.writeFileSync('./public/index.html', html);
+}
+
+getPosts();
